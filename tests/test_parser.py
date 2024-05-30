@@ -966,6 +966,25 @@ class ParserMissingArcDescriptionTest(PythonParserTestBase):
             "line 4 didn't jump to line 6 because the pattern on line 4 always matched"
         )
 
+    def test_missing_arc_descriptions_bug1775(self) -> None:
+        # Bug: the `if x == 2:` line was marked partial with a message of:
+        # line 6 didn't return from function 'func', because the return on line 4 wasn't executed
+        parser = self.parse_text("""\
+            def func():
+                x = 2
+                try:
+                    return 4
+                finally:
+                    if x == 2:  # line 6
+                        print("x is 2")
+
+            func()
+            """)
+        assert parser.missing_arc_description(6, -1) == (
+            "line 6 didn't return from function 'func' "
+            + "because the condition on line 6 was always true"
+        )
+
 
 class ParserFileTest(CoverageTest):
     """Tests for coverage.py's code parsing from files."""
