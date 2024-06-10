@@ -325,6 +325,11 @@ class Collector:
         if self._collectors:
             self._collectors[-1].pause()
 
+        if self.core.instrumenter is not None:
+            # TODO: only do this if there isn't a collector on the stack that
+            # did this already.
+            self.core.instrumenter.start()
+
         self.tracers = []
 
         try:
@@ -356,6 +361,9 @@ class Collector:
         )
 
         self.pause()
+
+        if self.core.instrumenter is not None:
+            self.core.instrumenter.stop()
 
         # Remove this Collector from the stack, and resume the one underneath (if any).
         self._collectors.pop()

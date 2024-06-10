@@ -12,9 +12,10 @@ from typing import Any
 from coverage import env
 from coverage.disposition import FileDisposition
 from coverage.exceptions import ConfigError
+from coverage.importer import Instrumenter
 from coverage.pytracer import PyTracer
 from coverage.sysmon import SysMonitor
-from coverage.types import TFileDisposition, Tracer,  TWarnFn
+from coverage.types import TFileDisposition, TShouldTraceFn, Tracer,  TWarnFn
 
 
 try:
@@ -41,11 +42,20 @@ class Core:
     tracer_class: type[Tracer]
     tracer_kwargs: dict[str, Any]
     file_disposition_class: type[TFileDisposition]
+    instrumenter: Instrumenter | None
     supports_plugins: bool
     packed_arcs: bool
     systrace: bool
 
-    def __init__(self, warn: TWarnFn, timid: bool, metacov: bool) -> None:
+    def __init__(self,
+        warn: TWarnFn,
+        should_trace: TShouldTraceFn,
+        branch: bool,
+        timid: bool,
+        metacov: bool,
+    ) -> None:
+        self.instrumenter = None
+
         core_name: str | None
         if timid:
             core_name = "pytrace"
@@ -72,6 +82,10 @@ class Core:
             self.supports_plugins = False
             self.packed_arcs = False
             self.systrace = False
+            if branch:
+                self.instrumenter = Instrumenter(
+                    should_instrument=lambda fname: should_trace(fname, None).trace
+                )
         elif core_name == "ctrace":
             self.tracer_class = CTracer
             self.tracer_kwargs = {}
