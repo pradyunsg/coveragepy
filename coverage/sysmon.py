@@ -416,10 +416,13 @@ class SysMonitor(Tracer):
         code_info = self.code_infos[id(code)]
         if code_info.file_data is not None:
             import contextlib
-            with open("/tmp/foo.out", "a") as f:
-                with contextlib.redirect_stdout(f):
-                    print(f"adding {line_number = }, {code = }")
-            cast(Set[TLineNo], code_info.file_data).add(line_number)
+            # with open("/tmp/foo.out", "a") as f:
+            #     with contextlib.redirect_stdout(f):
+            #         print(f"adding {line_number = }, {code = }")
+            # TODO: if we can ensure instrumenting is only done when meaasuring
+            # branches, then we don't need this check.
+            if not is_branch(line_number):
+                cast(Set[TLineNo], code_info.file_data).add(line_number)
             # log(f"adding {line_number=}")
         return sys.monitoring.DISABLE
 
@@ -435,9 +438,9 @@ class SysMonitor(Tracer):
             arc = (from_no, to_no)
             cast(Set[TArc], code_info.file_data).add(arc)
             import contextlib
-            with open("/tmp/foo.out", "a") as f:
-                with contextlib.redirect_stdout(f):
-                    print(f"adding {arc = }")
+            # with open("/tmp/foo.out", "a") as f:
+            #     with contextlib.redirect_stdout(f):
+            #         print(f"adding {arc = }")
             # log(f"adding {arc=}")
             #self.last_lines[frame] = line_number
         return sys.monitoring.DISABLE
