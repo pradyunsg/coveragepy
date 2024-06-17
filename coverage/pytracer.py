@@ -253,6 +253,10 @@ class PyTracer(Tracer):
                 flineno: TLineNo = frame.f_lineno
 
                 if self.trace_arcs:
+                    import contextlib, os
+                    with open("/tmp/foo.out", "a") as f:
+                        with contextlib.redirect_stdout(f):
+                            print(f"pytrace: add {(self.last_line, flineno)}")
                     cast(Set[TArc], self.cur_file_data).add((self.last_line, flineno))
                 else:
                     cast(Set[TLineNo], self.cur_file_data).add(flineno)
@@ -286,6 +290,10 @@ class PyTracer(Tracer):
                         real_return = True
                 if real_return:
                     first = frame.f_code.co_firstlineno
+                    import contextlib
+                    with open("/tmp/foo.out", "a") as f:
+                        with contextlib.redirect_stdout(f):
+                            print(f"pytrace: add {(self.last_line, -first)}")
                     cast(Set[TArc], self.cur_file_data).add((self.last_line, -first))
 
             # Leaving this function, pop the filename stack.
