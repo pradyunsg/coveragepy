@@ -11,6 +11,7 @@ import dataclasses
 from collections.abc import Container
 from typing import Iterable, TYPE_CHECKING
 
+from coverage import env
 from coverage.exceptions import ConfigError
 from coverage.misc import nice_pair
 from coverage.types import TArc, TLineNo
@@ -34,7 +35,21 @@ def analysis_from_file_reporter(
 
     if has_arcs:
         _arc_possibilities_set = file_reporter.arcs()
-        _arcs_executed_set = file_reporter.translate_arcs(data.arcs(filename) or [])
+        arcs = data.arcs(filename) or []
+        if not env.CHECK_ARCS:
+            dests = collections.defaultdict(set)
+            for fromno, tono in _arc_possibilities_set:
+                dests[fromno].add(tono)
+            single_dests = {fromno: list(tonos)[0] for fromno, tonos in dests.items() if len(tonos) == 1}
+            new_arcs = set()
+            for fromno, tono in arcs:
+                if fromno != tono:
+                    new_arcs.add((fromno, tono))
+                else:
+                    if fromno in single_dests:
+                        new_arcs.add((fromno, single_dests[fromno]))
+            arcs = new_arcs
+        _arcs_executed_set = file_reporter.translate_arcs(arcs)
         exit_counts = file_reporter.exit_counts()
         no_branch = file_reporter.no_branch_lines()
     else:
@@ -157,6 +172,8 @@ class Analysis:
 
     def arcs_missing(self) -> list[TArc]:
         """Returns a sorted list of the un-executed arcs in the code."""
+        # print(f"{self.arc_possibilities = }")
+        # print(f"{self.arcs_executed = }")
         missing = (
             p for p in self.arc_possibilities
                 if p not in self.arcs_executed
@@ -194,8 +211,13 @@ class Analysis:
         Returns {l1:[l2a,l2b,...], ...}
 
         """
-        missing = self.arcs_missing()
+        arcs_missing = missing = self.arcs_missing()
         branch_lines = set(self._branch_lines())
+        import contextlib
+        with open("/tmp/foo.out", "a") as f:
+            with contextlib.redirect_stdout(f):
+                print(f"{branch_lines = }")
+                print(f"{arcs_missing = }")
         mba = collections.defaultdict(list)
         for l1, l2 in missing:
             if l1 == l2:

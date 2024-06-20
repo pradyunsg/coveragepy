@@ -180,7 +180,7 @@ class CoverageTest(
         Returns the Coverage object, in case you want to poke at it some more.
 
         """
-        __tracebackhide__ = True    # pytest, please don't show me this function.
+        #__tracebackhide__ = True    # pytest, please don't show me this function.
 
         # We write the code into a file so that we can import it.
         # Coverage.py wants to deal with things as modules with file names.
@@ -229,27 +229,30 @@ class CoverageTest(
             msg = f"missing: {missing_formatted!r} != {missing!r}"
             assert missing_formatted == missing, msg
 
-        def arcs_to_branches(arcs):
+        def arcs_to_branches(arcs, all_arcs):
             import collections
             if arcs is None:
                 return {}
             arcs_combined = collections.defaultdict(set)
-            for fromno, tono in arcs:
+            for fromno, tono in all_arcs:
                 arcs_combined[fromno].add(tono)
-            branches = {}
-            for fromno, tonos in arcs_combined.items():
-                if len(tonos) > 1:
-                    branches[fromno] = tonos
+            branches = collections.defaultdict(list)
+            for fromno, tono in arcs:
+                if len(arcs_combined[fromno]) > 1:
+                    branches[fromno].append(tono)
             return branches
 
         if arcs is not None:
+            # print(f"{arcs = }")
+            # print(f"{arcs_missing = }")
+            # print(f"{analysis.arcs_missing() = }")
             if env.CHECK_ARCS:
                 # print("Possible arcs:")
                 # print(" expected:", arcs)
                 # print(" actual:", analysis.arc_possibilities)
                 # print("Executed:")
                 # print(" actual:", sorted(set(analysis.arcs_executed)))
-                print(f"branches: {branches}")
+                # print(f"branches: {branches}")
                 # TODO: this would be nicer with pytest-check, once we can run that.
                 msg = (
                     self._check_arcs(arcs, analysis.arc_possibilities, "Possible") +
@@ -260,7 +263,9 @@ class CoverageTest(
                     assert False, msg
             else:
                 assert arcs == analysis.arc_possibilities
-                assert arcs_to_branches(arcs_missing) == analysis.missing_branch_arcs()
+                if arcs_missing is not None:
+                    analysis_missing = [(fromno, tono) for fromno, tonos in analysis.missing_branch_arcs().items() for tono in tonos]
+                    assert arcs_to_branches(arcs_missing, arcs) == arcs_to_branches(analysis_missing, arcs)
 
         if report:
             frep = io.StringIO()

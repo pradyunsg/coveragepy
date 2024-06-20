@@ -44,7 +44,7 @@ class FakeBranchLineTransformer(ast.NodeTransformer):
         #assert sys.version_info[0:2] >= (3,12)
         for node in ast.walk(mark):
             node.lineno = node.end_lineno = encode_branch(from_lineno, to_lineno)
-            # Leaving the columns unitialized can lead to invalid positions despite
+            # Leaving the columns uninitialized can lead to invalid positions despite
             # our use of ast.fix_missing_locations
             node.col_offset = node.end_col_offset = -1
 
