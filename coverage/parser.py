@@ -522,15 +522,11 @@ class Block:
     # pylint: disable=unused-argument
     def process_break_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
         """Process break exits."""
-        # Because break can only appear in loops, and most subclasses
-        # implement process_break_exits, this function is never reached.
-        raise AssertionError
+        return False
 
     def process_continue_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
         """Process continue exits."""
-        # Because continue can only appear in loops, and most subclasses
-        # implement process_continue_exits, this function is never reached.
-        raise AssertionError
+        return False
 
     def process_raise_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
         """Process raise exits."""
@@ -592,81 +588,53 @@ class TryBlock(Block):
         # The line number of the "finally:" clause, if any.
         self.final_start = final_start
 
-        # The ArcStarts for breaks/continues/returns/raises inside the "try:"
-        # that need to route through the "finally:" clause.
-        self.break_from: set[ArcStart] = set()
-        self.continue_from: set[ArcStart] = set()
-        self.raise_from: set[ArcStart] = set()
-        self.return_from: set[ArcStart] = set()
-
-    def process_break_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
-        if self.final_start is not None:
-            self.break_from.update(exits)
-            return True
-        return False
-
-    def process_continue_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
-        if self.final_start is not None:
-            self.continue_from.update(exits)
-            return True
-        return False
-
     def process_raise_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
         if self.handler_start is not None:
             for xit in exits:
                 add_arc(xit.lineno, self.handler_start, xit.cause)
-        else:
-            assert self.final_start is not None
-            self.raise_from.update(exits)
         return True
 
-    def process_return_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
-        if self.final_start is not None:
-            self.return_from.update(exits)
-            return True
-        return False
 
-
-class WithBlock(Block):
-    """A block on the block stack representing a `with` block."""
-    def __init__(self, start: TLineNo) -> None:
-        # We only ever use this block if it is needed, so that we don't have to
-        # check this setting in all the methods.
-        assert env.PYBEHAVIOR.exit_through_with
-
-        # The line number of the with statement.
-        self.start = start
-
-        # The ArcStarts for breaks/continues/returns/raises inside the "with:"
-        # that need to go through the with-statement while exiting.
-        self.break_from: set[ArcStart] = set()
-        self.continue_from: set[ArcStart] = set()
-        self.return_from: set[ArcStart] = set()
-
-    def _process_exits(
-        self,
-        exits: set[ArcStart],
-        add_arc: TAddArcFn,
-        from_set: set[ArcStart] | None = None,
-    ) -> bool:
-        """Helper to process the four kinds of exits."""
-        for xit in exits:
-            add_arc(xit.lineno, self.start, xit.cause)
-        if from_set is not None:
-            from_set.update(exits)
-        return True
-
-    def process_break_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
-        return self._process_exits(exits, add_arc, self.break_from)
-
-    def process_continue_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
-        return self._process_exits(exits, add_arc, self.continue_from)
-
-    def process_raise_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
-        return self._process_exits(exits, add_arc)
-
-    def process_return_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
-        return self._process_exits(exits, add_arc, self.return_from)
+# class WithBlock(Block):
+#     """A block on the block stack representing a `with` block."""
+#     def __init__(self, start: TLineNo) -> None:
+#         # We only ever use this block if it is needed, so that we don't have to
+#         # check this setting in all the methods.
+#         assert env.PYBEHAVIOR.exit_through_with
+#
+#         # The line number of the with statement.
+#         self.start = start
+#
+#         # The ArcStarts for breaks/continues/returns/raises inside the "with:"
+#         # that need to go through the with-statement while exiting.
+#         self.break_from: set[ArcStart] = set()
+#         self.continue_from: set[ArcStart] = set()
+#         self.return_from: set[ArcStart] = set()
+#
+#     def _process_exits(
+#         self,
+#         exits: set[ArcStart],
+#         add_arc: TAddArcFn,
+#         from_set: set[ArcStart] | None = None,
+#     ) -> bool:
+#         """Helper to process the four kinds of exits."""
+#         for xit in exits:
+#             add_arc(xit.lineno, self.start, xit.cause)
+#         if from_set is not None:
+#             from_set.update(exits)
+#         return True
+#
+#     def process_break_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
+#         return self._process_exits(exits, add_arc, self.break_from)
+#
+#     def process_continue_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
+#         return self._process_exits(exits, add_arc, self.continue_from)
+#
+#     def process_raise_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
+#         return self._process_exits(exits, add_arc)
+#
+#     def process_return_exits(self, exits: set[ArcStart], add_arc: TAddArcFn) -> bool:
+#         return self._process_exits(exits, add_arc, self.return_from)
 
 
 class NodeList(ast.AST):
@@ -1271,56 +1239,50 @@ class AstArcAnalyzer:
 
         if node.finalbody:
             self.block_stack.pop()
-            final_from = (                  # You can get to the `finally` clause from:
-                exits |                         # the exits of the body or `else` clause,
-                try_block.break_from |          # or a `break`,
-                try_block.continue_from |       # or a `continue`,
-                try_block.raise_from |          # or a `raise`,
-                try_block.return_from           # or a `return`.
-            )
+            final_from = exits
 
             final_exits = self.body_exits(node.finalbody, prev_starts=final_from)
 
-            if try_block.break_from:
-                if env.PYBEHAVIOR.finally_jumps_back:
-                    for break_line in try_block.break_from:
-                        lineno = break_line.lineno
-                        cause = break_line.cause.format(lineno=lineno)
-                        for final_exit in final_exits:
-                            self.add_arc(final_exit.lineno, lineno, cause)
-                    breaks = try_block.break_from
-                else:
-                    breaks = self._combine_finally_starts(try_block.break_from, final_exits)
-                self.process_break_exits(breaks)
-
-            if try_block.continue_from:
-                if env.PYBEHAVIOR.finally_jumps_back:
-                    for continue_line in try_block.continue_from:
-                        lineno = continue_line.lineno
-                        cause = continue_line.cause.format(lineno=lineno)
-                        for final_exit in final_exits:
-                            self.add_arc(final_exit.lineno, lineno, cause)
-                    continues = try_block.continue_from
-                else:
-                    continues = self._combine_finally_starts(try_block.continue_from, final_exits)
-                self.process_continue_exits(continues)
-
-            if try_block.raise_from:
-                self.process_raise_exits(
-                    self._combine_finally_starts(try_block.raise_from, final_exits),
-                )
-
-            if try_block.return_from:
-                if env.PYBEHAVIOR.finally_jumps_back:
-                    for return_line in try_block.return_from:
-                        lineno = return_line.lineno
-                        cause = return_line.cause.format(lineno=lineno)
-                        for final_exit in final_exits:
-                            self.add_arc(final_exit.lineno, lineno, cause)
-                    returns = try_block.return_from
-                else:
-                    returns = self._combine_finally_starts(try_block.return_from, final_exits)
-                self.process_return_exits(returns)
+            # if try_block.break_from:
+            #     if env.PYBEHAVIOR.finally_jumps_back:
+            #         for break_line in try_block.break_from:
+            #             lineno = break_line.lineno
+            #             cause = break_line.cause.format(lineno=lineno)
+            #             for final_exit in final_exits:
+            #                 self.add_arc(final_exit.lineno, lineno, cause)
+            #         breaks = try_block.break_from
+            #     else:
+            #         breaks = self._combine_finally_starts(try_block.break_from, final_exits)
+            #     self.process_break_exits(breaks)
+            #
+            # if try_block.continue_from:
+            #     if env.PYBEHAVIOR.finally_jumps_back:
+            #         for continue_line in try_block.continue_from:
+            #             lineno = continue_line.lineno
+            #             cause = continue_line.cause.format(lineno=lineno)
+            #             for final_exit in final_exits:
+            #                 self.add_arc(final_exit.lineno, lineno, cause)
+            #         continues = try_block.continue_from
+            #     else:
+            #         continues = self._combine_finally_starts(try_block.continue_from, final_exits)
+            #     self.process_continue_exits(continues)
+            #
+            # if try_block.raise_from:
+            #     self.process_raise_exits(
+            #         self._combine_finally_starts(try_block.raise_from, final_exits),
+            #     )
+            #
+            # if try_block.return_from:
+            #     if env.PYBEHAVIOR.finally_jumps_back:
+            #         for return_line in try_block.return_from:
+            #             lineno = return_line.lineno
+            #             cause = return_line.cause.format(lineno=lineno)
+            #             for final_exit in final_exits:
+            #                 self.add_arc(final_exit.lineno, lineno, cause)
+            #         returns = try_block.return_from
+            #     else:
+            #         returns = self._combine_finally_starts(try_block.return_from, final_exits)
+            #     self.process_return_exits(returns)
 
             if exits:
                 # The finally clause's exits are only exits for the try block
@@ -1329,20 +1291,20 @@ class AstArcAnalyzer:
 
         return exits
 
-    def _combine_finally_starts(self, starts: set[ArcStart], exits: set[ArcStart]) -> set[ArcStart]:
-        """Helper for building the cause of `finally` branches.
-
-        "finally" clauses might not execute their exits, and the causes could
-        be due to a failure to execute any of the exits in the try block. So
-        we use the causes from `starts` as the causes for `exits`.
-        """
-        causes = []
-        for start in sorted(starts):
-            if start.cause:
-                causes.append(start.cause.format(lineno=start.lineno))
-        cause = " or ".join(causes)
-        exits = {ArcStart(xit.lineno, cause) for xit in exits}
-        return exits
+    # def _combine_finally_starts(self, starts: set[ArcStart], exits: set[ArcStart]) -> set[ArcStart]:
+    #     """Helper for building the cause of `finally` branches.
+    #
+    #     "finally" clauses might not execute their exits, and the causes could
+    #     be due to a failure to execute any of the exits in the try block. So
+    #     we use the causes from `starts` as the causes for `exits`.
+    #     """
+    #     causes = []
+    #     for start in sorted(starts):
+    #         if start.cause:
+    #             causes.append(start.cause.format(lineno=start.lineno))
+    #     cause = " or ".join(causes)
+    #     exits = {ArcStart(xit.lineno, cause) for xit in exits}
+    #     return exits
 
     def _handle__While(self, node: ast.While) -> set[ArcStart]:
         start = to_top = self.line_for_node(node.test)
@@ -1375,29 +1337,29 @@ class AstArcAnalyzer:
 
     def _handle__With(self, node: ast.With) -> set[ArcStart]:
         start = self.line_for_node(node)
-        if env.PYBEHAVIOR.exit_through_with:
-            self.block_stack.append(WithBlock(start=start))
+        # if env.PYBEHAVIOR.exit_through_with:
+        #     self.block_stack.append(WithBlock(start=start))
         exits = self.body_exits(node.body, from_start=ArcStart(start))
-        if env.PYBEHAVIOR.exit_through_with:
-            with_block = self.block_stack.pop()
-            assert isinstance(with_block, WithBlock)
-            with_exit = {ArcStart(start)}
-            if exits:
-                for xit in exits:
-                    self.add_arc(xit.lineno, start)
-                exits = with_exit
-            if with_block.break_from:
-                self.process_break_exits(
-                    self._combine_finally_starts(with_block.break_from, with_exit),
-                )
-            if with_block.continue_from:
-                self.process_continue_exits(
-                    self._combine_finally_starts(with_block.continue_from, with_exit),
-                )
-            if with_block.return_from:
-                self.process_return_exits(
-                    self._combine_finally_starts(with_block.return_from, with_exit),
-                )
+        # if env.PYBEHAVIOR.exit_through_with:
+        #     with_block = self.block_stack.pop()
+        #     assert isinstance(with_block, WithBlock)
+        #     with_exit = {ArcStart(start)}
+        #     if exits:
+        #         for xit in exits:
+        #             self.add_arc(xit.lineno, start)
+        #         exits = with_exit
+        #     if with_block.break_from:
+        #         self.process_break_exits(
+        #             self._combine_finally_starts(with_block.break_from, with_exit),
+        #         )
+        #     if with_block.continue_from:
+        #         self.process_continue_exits(
+        #             self._combine_finally_starts(with_block.continue_from, with_exit),
+        #         )
+        #     if with_block.return_from:
+        #         self.process_return_exits(
+        #             self._combine_finally_starts(with_block.return_from, with_exit),
+        #         )
         return exits
 
     _handle__AsyncWith = _handle__With

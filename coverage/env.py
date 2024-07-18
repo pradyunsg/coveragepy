@@ -67,7 +67,7 @@ class PYBEHAVIOR:
     # When a break/continue/return statement in a try block jumps to a finally
     # block, does the finally jump back to the break/continue/return (pre-3.10)
     # to do the work?
-    finally_jumps_back = (PYVERSION < (3, 10))
+    # finally_jumps_back = (PYVERSION < (3, 10))
 
     # CPython 3.11 now jumps to the decorator line again while executing
     # the decorator.
