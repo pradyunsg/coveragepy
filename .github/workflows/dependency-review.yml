@@ -10,7 +10,7 @@ on:
   push:
     branches:
       - master
-      - nedbat/*
+      #- nedbat/*
   pull_request:
   workflow_dispatch:
 
