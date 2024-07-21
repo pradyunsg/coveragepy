@@ -201,8 +201,6 @@ class WithTest(CoverageTest):
 
     def test_with(self) -> None:
         arcz = ".1 .2 23 34 4. 16 6."
-        # if env.PYBEHAVIOR.exit_through_with:
-        #     arcz = arcz.replace("4.", "42 2.")
         self.check_coverage("""\
             def example():
                 with open("test", "w") as f:
@@ -216,8 +214,6 @@ class WithTest(CoverageTest):
 
     def test_with_return(self) -> None:
         arcz = ".1 .2 23 34 4. 16 6."
-        # if env.PYBEHAVIOR.exit_through_with:
-        #     arcz = arcz.replace("4.", "42 2.")
         self.check_coverage("""\
             def example():
                 with open("test", "w") as f:
@@ -232,8 +228,6 @@ class WithTest(CoverageTest):
     def test_bug_146(self) -> None:
         # https://github.com/nedbat/coveragepy/issues/146
         arcz = ".1 12 23 34 41 15 5."
-        # if env.PYBEHAVIOR.exit_through_with:
-        #     arcz = arcz.replace("34", "32 24")
         self.check_coverage("""\
             for i in range(2):
                 with open("test", "w") as f:
@@ -246,8 +240,6 @@ class WithTest(CoverageTest):
 
     def test_nested_with_return(self) -> None:
         arcz = ".1 .2 23 34 45 56 6. 18 8."
-        # if env.PYBEHAVIOR.exit_through_with:
-        #     arcz = arcz.replace("6.", "64 42 2.")
         self.check_coverage("""\
             def example(x):
                 with open("test", "w") as f2:
@@ -263,8 +255,6 @@ class WithTest(CoverageTest):
 
     def test_break_through_with(self) -> None:
         arcz = ".1 12 23 34 45 15 5."
-        # if env.PYBEHAVIOR.exit_through_with:
-        #     arcz = arcz.replace("45", "42 25")
         self.check_coverage("""\
             for i in range(1+1):
                 with open("test", "w") as f:
@@ -278,8 +268,6 @@ class WithTest(CoverageTest):
 
     def test_continue_through_with(self) -> None:
         arcz = ".1 12 23 34 41 15 5."
-        # if env.PYBEHAVIOR.exit_through_with:
-        #     arcz = arcz.replace("41", "42 21")
         self.check_coverage("""\
             for i in range(1+1):
                 with open("test", "w") as f:
@@ -292,14 +280,9 @@ class WithTest(CoverageTest):
 
     # https://github.com/nedbat/coveragepy/issues/1270
     def test_raise_through_with(self) -> None:
-        # if env.PYBEHAVIOR.exit_through_with:
-        #     arcz = ".1 12 27 78 8. 9A A.  -23 34 45 53 6-2"
-        #     arcz_missing = "6-2 8."
-        #     arcz_unpredicted = "3-2 89"
-        if 1:
-            arcz = ".1 12 27 78 8. 9A A.  -23 34 45 5-2 6-2"
-            arcz_missing = "6-2 8."
-            arcz_unpredicted = "89"
+        arcz = ".1 12 27 78 8. 9A A.  -23 34 45 5-2 6-2"
+        arcz_missing = "6-2 8."
+        arcz_unpredicted = "89"
         cov = self.check_coverage("""\
             from contextlib import suppress
             def f(x):
@@ -320,12 +303,8 @@ class WithTest(CoverageTest):
         assert self.get_missing_arc_description(cov, 3, -2) == expected
 
     def test_untaken_raise_through_with(self) -> None:
-        # if env.PYBEHAVIOR.exit_through_with:
-        #     arcz = ".1 12 28 89 9. AB B.  -23 34 45 56 53 63 37 7-2"
-        #     arcz_missing = "56 63 AB B."
-        if 1:
-            arcz = ".1 12 28 89 9. AB B.  -23 34 45 56 6-2 57 7-2"
-            arcz_missing = "56 6-2 AB B."
+        arcz = ".1 12 28 89 9. AB B.  -23 34 45 56 6-2 57 7-2"
+        arcz_missing = "56 6-2 AB B."
         cov = self.check_coverage("""\
             from contextlib import suppress
             def f(x):
@@ -872,8 +851,6 @@ class ExceptionArcTest(CoverageTest):
     @xfail_pypy_3882
     def test_break_through_finally(self) -> None:
         arcz = ".1 12 23 34 3D 45 56 67 68 7A    AD 8A A3 BC CD D."
-        # if env.PYBEHAVIOR.finally_jumps_back:
-        #     arcz = arcz.replace("AD", "A7 7D")
         self.check_coverage("""\
             a, c, d, i = 1, 1, 1, 99
             try:
@@ -916,8 +893,6 @@ class ExceptionArcTest(CoverageTest):
     @xfail_pypy_3882
     def test_continue_through_finally(self) -> None:
         arcz = ".1 12 23 34 3D 45 56 67 68       7A 8A A3 BC CD D."
-        # if env.PYBEHAVIOR.finally_jumps_back:
-        #     arcz += " 73 A7"
         self.check_coverage("""\
             a, b, c, d, i = 1, 1, 1, 1, 99
             try:
@@ -1076,8 +1051,6 @@ class ExceptionArcTest(CoverageTest):
 
     def test_return_finally(self) -> None:
         arcz = ".1 12 29 9A AB BC C-1   -23 34 45  7-2   57 38 8-2"
-        # if env.PYBEHAVIOR.finally_jumps_back:
-        #     arcz = arcz.replace("7-2", "75 5-2")
         self.check_coverage("""\
             a = [1]
             def check_token(data):
@@ -1104,8 +1077,6 @@ class ExceptionArcTest(CoverageTest):
             "LO L4 L. LM " +
             "MN NO O."
         )
-        # if env.PYBEHAVIOR.finally_jumps_back:
-        #     arcz = arcz.replace("LO", "LA AO").replace("L4", "L4 LD D4").replace("L.", "LG G.")
         self.check_coverage("""\
             def func(x):
                 a = f = g = 2
@@ -1152,8 +1123,6 @@ class ExceptionArcTest(CoverageTest):
             "N4 NQ N. NO " +
             "OP PQ Q."
         )
-        # if env.PYBEHAVIOR.finally_jumps_back:
-        #     arcz = arcz.replace("NQ", "NC CQ").replace("N4", "N4 NF F4").replace("N.", "NI I.")
         self.check_coverage("""\
             def func(x):
                 a = f = g = 2
@@ -1969,12 +1938,8 @@ class AsyncTest(CoverageTest):
         assert self.stdout() == "a\nb\nc\n.\n"
 
     def test_async_with(self) -> None:
-        # if env.PYBEHAVIOR.exit_through_with:
-        #     arcz = ".1 1. .2 23 32 2."
-        #     arcz_missing = ".2 23 32 2."
-        if 1:
-            arcz = ".1 1. .2 23 3."
-            arcz_missing = ".2 23 3."
+        arcz = ".1 1. .2 23 3."
+        arcz_missing = ".2 23 3."
         self.check_coverage("""\
             async def go():
                 async with x:

@@ -180,7 +180,7 @@ class CoverageTest(
         Returns the Coverage object, in case you want to poke at it some more.
 
         """
-        #__tracebackhide__ = True    # pytest, please don't show me this function.
+        __tracebackhide__ = True    # pytest, please don't show me this function.
 
         # We write the code into a file so that we can import it.
         # Coverage.py wants to deal with things as modules with file names.

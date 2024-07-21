@@ -64,11 +64,6 @@ class PYBEHAVIOR:
     # 3.7 changed how functions with only docstrings are numbered.
     docstring_only_function = (not PYPY) and (PYVERSION <= (3, 10))
 
-    # When a break/continue/return statement in a try block jumps to a finally
-    # block, does the finally jump back to the break/continue/return (pre-3.10)
-    # to do the work?
-    # finally_jumps_back = (PYVERSION < (3, 10))
-
     # CPython 3.11 now jumps to the decorator line again while executing
     # the decorator.
     trace_decorator_line_again = (CPYTHON and PYVERSION > (3, 11, 0, "alpha", 3, 0))
@@ -98,9 +93,6 @@ class PYBEHAVIOR:
 
     # Are "if 0:" lines (and similar) kept in the compiled code?
     keep_constant_test = pep626
-
-    # When leaving a with-block, do we visit the with-line again for the exit?
-    exit_through_with = (PYVERSION >= (3, 10, 0, "beta"))
 
     # Match-case construct.
     match_case = (PYVERSION >= (3, 10))
