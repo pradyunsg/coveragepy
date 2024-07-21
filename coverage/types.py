@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import pathlib
 
-from types import FrameType, ModuleType
+from types import CodeType, FrameType, ModuleType
 from typing import (
     Any, Callable, Dict, Iterable, List, Mapping, Optional, Protocol,
     Set, Tuple, Type, Union, TYPE_CHECKING,
@@ -78,10 +78,11 @@ TTraceFileData = Union[Set[TLineNo], Set[TArc], Set[int]]
 
 TTraceData = Dict[str, TTraceFileData]
 
-# Functions passed into collectors.
+# Functions passed among collectors, cores, etc.
 TShouldTraceFn = Callable[[str, FrameType], TFileDisposition]
 TCheckIncludeFn = Callable[[str, FrameType], bool]
 TShouldStartContextFn = Callable[[FrameType], Union[str, None]]
+TCompileFn = Callable[[str, str], CodeType]
 
 class Tracer(Protocol):
     """Anything that can report on Python execution."""

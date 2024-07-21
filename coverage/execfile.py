@@ -17,10 +17,9 @@ from importlib.machinery import ModuleSpec
 from types import CodeType, ModuleType
 from typing import Any
 
-from coverage import env
+from coverage import env, Coverage
 from coverage.exceptions import CoverageException, _ExceptionDuringRun, NoCode, NoSource
 from coverage.files import canonical_filename, python_reported_file
-from coverage.instrument import compile_instrumented
 from coverage.misc import isolate_module
 from coverage.python import get_python_source
 
@@ -289,14 +288,20 @@ def run_python_file(args: list[str]) -> None:
 
 def make_code_from_py(filename: str) -> CodeType:
     """Get source from `filename` and make a code object of it."""
-    # Open the source file.
     try:
         source = get_python_source(filename)
     except (OSError, NoSource) as exc:
         raise NoSource(f"No file to run: '{filename}'") from exc
 
-    code = compile_instrumented(source, filename)
-    #code = compile(source, filename, "exec", dont_inherit=True)
+    # TODO: this feels aggressive, but other ways of getting the information
+    # are awkward.
+    code = None
+    if (the_coverage := Coverage.current()) is not None:
+        assert the_coverage._core is not None
+        if (compile_fn := the_coverage._core.compile_fn) is not None:
+            code = compile_fn(source, filename)
+    if code is None:
+        code = compile(source, filename, mode="exec", dont_inherit=True)
     return code
 
 

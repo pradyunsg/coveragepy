@@ -13,9 +13,16 @@ from coverage import env
 from coverage.disposition import FileDisposition
 from coverage.exceptions import ConfigError
 from coverage.importer import Instrumenter
+from coverage.instrument import compile_instrumented
 from coverage.pytracer import PyTracer
 from coverage.sysmon import SysMonitor
-from coverage.types import TFileDisposition, TShouldTraceFn, Tracer,  TWarnFn
+from coverage.types import (
+    TCompileFn,
+    TFileDisposition,
+    TShouldTraceFn,
+    Tracer,
+    TWarnFn,
+)
 
 
 try:
@@ -43,6 +50,7 @@ class Core:
     tracer_kwargs: dict[str, Any]
     file_disposition_class: type[TFileDisposition]
     instrumenter: Instrumenter | None
+    compile_fn: TCompileFn | None
     supports_plugins: bool
     packed_arcs: bool
     systrace: bool
@@ -54,7 +62,10 @@ class Core:
         timid: bool,
         metacov: bool,
     ) -> None:
+        # Defaults
         self.instrumenter = None
+        self.compile_fn = None
+        self.tracer_kwargs = {}
 
         core_name: str | None
         if timid:
@@ -79,23 +90,22 @@ class Core:
             self.tracer_class = SysMonitor
             self.tracer_kwargs = {"tool_id": 3 if metacov else 1}
             self.file_disposition_class = FileDisposition
-            self.supports_plugins = False
-            self.packed_arcs = False
-            self.systrace = False
             if branch:
                 self.instrumenter = Instrumenter(
                     should_instrument=lambda fname: should_trace(fname, None).trace
                 )
+            self.compile_fn = compile_instrumented
+            self.supports_plugins = False
+            self.packed_arcs = False
+            self.systrace = False
         elif core_name == "ctrace":
             self.tracer_class = CTracer
-            self.tracer_kwargs = {}
             self.file_disposition_class = CFileDisposition
             self.supports_plugins = True
             self.packed_arcs = True
             self.systrace = True
         elif core_name == "pytrace":
             self.tracer_class = PyTracer
-            self.tracer_kwargs = {}
             self.file_disposition_class = FileDisposition
             self.supports_plugins = False
             self.packed_arcs = False
