@@ -85,7 +85,7 @@ class PythonParser:
         self.raw_excluded: set[TLineNo] = set()
 
         # The line numbers of class definitions.
-        self.raw_classdefs: set[TLineNo] = set()
+        # self.raw_classdefs: set[TLineNo] = set()
 
         # The line numbers of docstring lines.
         self.raw_docstrings: set[TLineNo] = set()
@@ -214,8 +214,8 @@ class PythonParser:
         assert self._ast_root is not None
         for node in ast.walk(self._ast_root):
             # Find class definitions.
-            if isinstance(node, ast.ClassDef):
-                self.raw_classdefs.add(node.lineno)
+            # if isinstance(node, ast.ClassDef):
+            #     self.raw_classdefs.add(node.lineno)
             # Find docstrings.
             if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef, ast.Module)):
                 if node.body:
@@ -337,10 +337,10 @@ class PythonParser:
             exit_counts[l1] += 1
 
         # Class definitions have one extra exit, so remove one for each:
-        for l in self.raw_classdefs:
-            # Ensure key is there: class definitions can include excluded lines.
-            if l in exit_counts:
-                exit_counts[l] -= 1
+        # for l in self.raw_classdefs:
+        #     # Ensure key is there: class definitions can include excluded lines.
+        #     if l in exit_counts:
+        #         exit_counts[l] -= 1
 
         return exit_counts
 
@@ -612,7 +612,7 @@ def _make_expression_code_method(noun: str) -> Callable[[AstArcAnalyzer, ast.AST
     """A function to make methods for expression-based callable _code_object__ methods."""
     def _code_object__expression_callable(self: AstArcAnalyzer, node: ast.AST) -> None:
         start = self.line_for_node(node)
-        self.add_arc(-start, start, None, f"didn't run the {noun} on line {start}")
+        #self.add_arc(-start, start, None, f"didn't run the {noun} on line {start}")
         self.add_arc(start, -start, None, f"didn't finish the {noun} on line {start}")
     return _code_object__expression_callable
 
@@ -631,6 +631,10 @@ class AstArcAnalyzer:
 
     For an arc starting from line 17, they should be usable to form complete
     sentences like: "Line 17 {endmsg} because {startmsg}".
+
+    NOTE: Starting in July 2024, I've been whittling this down to only report
+    arc that are part of true branches.  It's not clear how far this work will
+    go.
 
     """
 
@@ -681,18 +685,18 @@ class AstArcAnalyzer:
     def _code_object__Module(self, node: ast.Module) -> None:
         start = self.line_for_node(node)
         if node.body:
-            exits = self.body_exits(node.body, from_start=ArcStart(-start))
+            exits = self.body_exits(node.body)
             for xit in exits:
                 self.add_arc(xit.lineno, -start, xit.cause, "didn't exit the module")
         else:
             # Empty module.
-            self.add_arc(-start, start)
+            #self.add_arc(-start, start)
             self.add_arc(start, -start)
 
     def _code_object__FunctionDef(self, node: ast.FunctionDef) -> None:
         start = self.line_for_node(node)
         self.block_stack.append(FunctionBlock(start=start, name=node.name))
-        exits = self.body_exits(node.body, from_start=ArcStart(-start))
+        exits = self.body_exits(node.body)
         self.process_return_exits(exits)
         self.block_stack.pop()
 
@@ -700,8 +704,8 @@ class AstArcAnalyzer:
 
     def _code_object__ClassDef(self, node: ast.ClassDef) -> None:
         start = self.line_for_node(node)
-        self.add_arc(-start, start)
-        exits = self.body_exits(node.body, from_start=ArcStart(start))
+        #self.add_arc(-start, start)
+        exits = self.body_exits(node.body)#, from_start=ArcStart(start))
         for xit in exits:
             self.add_arc(
                 xit.lineno, -start, xit.cause,
@@ -859,8 +863,10 @@ class AstArcAnalyzer:
 
         """
         if prev_starts is None:
-            assert from_start is not None
-            prev_starts = {from_start}
+            if from_start is None:
+                prev_starts = set()
+            else:
+                prev_starts = {from_start}
         else:
             assert from_start is None
 
@@ -1180,12 +1186,12 @@ class AstArcAnalyzer:
         handler_exits: set[ArcStart] = set()
 
         if node.handlers:
-            last_handler_start: TLineNo | None = None
+            #last_handler_start: TLineNo | None = None
             for handler_node in node.handlers:
                 handler_start = self.line_for_node(handler_node)
-                if last_handler_start is not None:
-                    self.add_arc(last_handler_start, handler_start)
-                last_handler_start = handler_start
+                # if last_handler_start is not None:
+                #     self.add_arc(last_handler_start, handler_start)
+                # last_handler_start = handler_start
                 from_cause = "the exception caught by line {lineno} didn't happen"
                 from_start = ArcStart(handler_start, cause=from_cause)
                 handler_exits |= self.body_exits(handler_node.body, from_start=from_start)

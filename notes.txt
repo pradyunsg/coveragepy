@@ -1,0 +1,21 @@
+Until now, "arcs" means a complete set of predicted and measured (from, to)
+pairs of line numbers.  Branches were determined by finding "from" lines that
+appeared in more than one predicted arc.
+
+That scheme found branches that were not true branches, such as the lines in
+finally clauses that could jump to more than one place based on how the finally
+clause was reached.
+
+Now we are shifting to true branches. To do this, we are removing code that
+predicted arcs that aren't part of true branches.  The ideal goal would be to
+only predict arcs that are part of branches, but a minimal goal is to stop
+predicting arcs that led to false branches.  ie, it's ok to predict an arc if
+the arc is the only arc for a given "from" line. Those arcs will be discarded
+and won't lead to false branches.
+
+When we are done, check_coverage should have no more "arc" arguments, and all of
+that code can be removed.  Internally, we're converting between list of pairs
+and dict of (fromno, [tonos]) too much, maybe that can be streamlined.
+
+exit_counts() will need to be removed, which changes the plugin interface, but
+perhaps no one has used that part of it.

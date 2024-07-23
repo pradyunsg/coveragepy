@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import collections
 import contextlib
 import datetime
 import difflib
@@ -161,6 +162,10 @@ class CoverageTest(
         arcs: Iterable[TArc] | None = None,
         arcs_missing: Iterable[TArc] | None = None,
         arcs_unpredicted: Iterable[TArc] | None = None,
+        branchz: str | None = None,
+        branchz_missing: str | None = None,
+        branches: Iterable[TArc] | None = None,
+        branches_missing: Iterable[TArc] | None = None,
     ) -> Coverage:
         """Check the coverage measurement of `text`.
 
@@ -180,7 +185,7 @@ class CoverageTest(
         Returns the Coverage object, in case you want to poke at it some more.
 
         """
-        __tracebackhide__ = True    # pytest, please don't show me this function.
+        #__tracebackhide__ = True    # pytest, please don't show me this function.
 
         # We write the code into a file so that we can import it.
         # Coverage.py wants to deal with things as modules with file names.
@@ -194,6 +199,17 @@ class CoverageTest(
             arcs_missing = arcz_to_arcs(arcz_missing)
         if arcs_unpredicted is None and arcz_unpredicted is not None:
             arcs_unpredicted = arcz_to_arcs(arcz_unpredicted)
+
+        if branches is None and branchz is not None:
+            branches = arcz_to_arcs(branchz)
+        if branches_missing is None and branchz_missing is not None:
+            branches_missing = arcz_to_arcs(branchz_missing)
+
+        if (
+            any(a is not None for a in [arcs, arcs_missing, arcs_unpredicted])
+            and any(b is not None for b in [branches, branches_missing])
+        ):
+            assert False, "Don't mix arcs and branches"
 
         # Start up coverage.py.
         cov = coverage.Coverage(branch=True)
@@ -229,12 +245,11 @@ class CoverageTest(
             msg = f"missing: {missing_formatted!r} != {missing!r}"
             assert missing_formatted == missing, msg
 
-        def arcs_to_branches(arcs, all_arcs):
-            import collections
+        def arcs_to_branches(arcs, all_arcs=None):
             if arcs is None:
                 return {}
             arcs_combined = collections.defaultdict(set)
-            for fromno, tono in all_arcs:
+            for fromno, tono in (all_arcs or arcs):
                 arcs_combined[fromno].add(tono)
             branches = collections.defaultdict(list)
             for fromno, tono in arcs:
@@ -242,10 +257,25 @@ class CoverageTest(
                     branches[fromno].append(tono)
             return branches
 
+        def branches_to_arcs(branches):
+            return [(fromno, tono) for fromno, tonos in branches.items() for tono in tonos]
+
+        def scrub_arcs(arcs):
+            """
+            TEMP: while we are whittling down complete arcs to branch arcs,
+            remove ones that are no longer collected.
+            """
+            if arcs is None:
+                return None
+            return [(fromno, tono) for fromno, tono in arcs if fromno > 0]
+
         if arcs is not None:
             # print(f"{arcs = }")
             # print(f"{arcs_missing = }")
             # print(f"{analysis.arcs_missing() = }")
+
+            arcs = scrub_arcs(arcs)
+            arcs_missing = scrub_arcs(arcs_missing)
             if env.CHECK_ARCS:
                 # print("Possible arcs:")
                 # print(" expected:", arcs)
@@ -257,15 +287,28 @@ class CoverageTest(
                 msg = (
                     self._check_arcs(arcs, analysis.arc_possibilities, "Possible") +
                     self._check_arcs(arcs_missing, analysis.arcs_missing(), "Missing") +
-                    self._check_arcs(arcs_unpredicted, analysis.arcs_unpredicted(), "Unpredicted")
+                    # TEMP: No need to check unpredicted anymore if we only
+                    # care about true branch arcs.
+                    "" #self._check_arcs(arcs_unpredicted, analysis.arcs_unpredicted(), "Unpredicted")
                 )
                 if msg:
                     assert False, msg
             else:
                 #assert arcs == analysis.arc_possibilities
                 if arcs_missing is not None:
-                    analysis_missing = [(fromno, tono) for fromno, tonos in analysis.missing_branch_arcs().items() for tono in tonos]
+                    analysis_missing = branches_to_arcs(analysis.missing_branch_arcs())
                     assert arcs_to_branches(arcs_missing, arcs) == arcs_to_branches(analysis_missing, arcs)
+
+        if branches is not None:
+            print(f"{analysis.arc_possibilities = }")
+            print(f"{branches = }")
+            print(f"{arcs_to_branches(branches) = }")
+            trimmed_arcs = branches_to_arcs(arcs_to_branches(analysis.arc_possibilities))
+            assert branches == trimmed_arcs, f"Wrong possible branches: {branches} != {trimmed_arcs}"
+            if branches_missing is not None:
+                assert set(branches_missing) <= set(branches), f"{branches_missing = }, has non-branches in it."
+                analysis_missing = branches_to_arcs(analysis.missing_branch_arcs())
+                assert branches_missing == analysis_missing, f"Wrong missing branches: {branches_missing} != {analysis_missing}"
 
         if report:
             frep = io.StringIO()

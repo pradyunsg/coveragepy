@@ -775,7 +775,7 @@ class ExceptionArcTest(CoverageTest):
                 c = 5
             assert a == 3 and c == 5
             """,
-            arcz=".1 12 23 35 56 6.",
+            branchz="",
         )
         self.check_coverage("""\
             a, c, d = 1, 1, 1
@@ -788,8 +788,7 @@ class ExceptionArcTest(CoverageTest):
                 d = 8
             assert a == 4 and c == 6 and d == 1    # 9
             """,
-            arcz=".1 12 23 34 46 78 89 69 9.",
-            arcz_missing="78 89",
+            branchz="",
         )
         self.check_coverage("""\
             a, c, d = 1, 1, 1
@@ -804,8 +803,7 @@ class ExceptionArcTest(CoverageTest):
                 d = 10                              # A
             assert a == 4 and c == 8 and d == 10    # B
             """,
-            arcz=".1 12 23 34 45 58 89 9A AB B.",
-            arcz_missing="",
+            branchz="",
         )
 
     @xfail_pypy_3882
@@ -825,8 +823,8 @@ class ExceptionArcTest(CoverageTest):
                 d = 12                              # C
             assert a == 5 and c == 10 and d == 12   # D
             """,
-            arcz=".1 12 23 34 3D 45 56 67 68 7A 8A A3 AB BC CD D.",
-            arcz_missing="3D",
+            branchz="34 3D 67 68",
+            branchz_missing="3D",
         )
         self.check_coverage("""\
             a, c, d, i = 1, 1, 1, 99
@@ -843,14 +841,13 @@ class ExceptionArcTest(CoverageTest):
                 d = 12                              # C
             assert a == 8 and c == 10 and d == 1    # D
             """,
-            arcz=".1 12 23 34 3D 45 56 67 68 7A 8A A3 AB BC CD D.",
-            arcz_missing="67 7A AB BC CD",
+            branchz="34 3D 67 68",
+            branchz_missing="67",
         )
 
 
     @xfail_pypy_3882
     def test_break_through_finally(self) -> None:
-        arcz = ".1 12 23 34 3D 45 56 67 68 7A    AD 8A A3 BC CD D."
         self.check_coverage("""\
             a, c, d, i = 1, 1, 1, 99
             try:
@@ -866,8 +863,8 @@ class ExceptionArcTest(CoverageTest):
                 d = 12                              # C
             assert a == 5 and c == 10 and d == 1    # D
             """,
-            arcz=arcz,
-            arcz_missing="3D BC CD",
+            branchz="34 3D 67 68",
+            branchz_missing="3D",
         )
 
     def test_break_continue_without_finally(self) -> None:
@@ -892,7 +889,6 @@ class ExceptionArcTest(CoverageTest):
 
     @xfail_pypy_3882
     def test_continue_through_finally(self) -> None:
-        arcz = ".1 12 23 34 3D 45 56 67 68       7A 8A A3 BC CD D."
         self.check_coverage("""\
             a, b, c, d, i = 1, 1, 1, 1, 99
             try:
@@ -908,8 +904,8 @@ class ExceptionArcTest(CoverageTest):
                 d = 12                              # C
             assert (a, b, c, d) == (5, 8, 10, 1)    # D
             """,
-            arcz=arcz,
-            arcz_missing="BC CD",
+            branchz="34 3D 67 68",
+            branchz_missing="",
         )
 
     def test_finally_in_loop_bug_92(self) -> None:
@@ -961,7 +957,7 @@ class ExceptionArcTest(CoverageTest):
                 c = 7
             assert a == 3 and b == 1 and c == 7
             """,
-            arcz=".1 12 23 45 37 57 78 8.", arcz_missing="45 57",
+            branchz="",
         )
         self.check_coverage("""\
             a, b, c = 1, 1, 1
@@ -977,8 +973,7 @@ class ExceptionArcTest(CoverageTest):
                 c = 11
             assert a == 5 and b == 9 and c == 11
             """,
-            arcz=".1 12 -23 3-2 24 45 56 67 7B 89 9B BC C.",
-            arcz_missing="67 7B", arcz_unpredicted="68",
+            branchz="",
         )
 
     def test_multiple_except_clauses(self) -> None:
@@ -994,8 +989,7 @@ class ExceptionArcTest(CoverageTest):
                 c = 9
             assert a == 3 and b == 1 and c == 9
             """,
-            arcz=".1 12 23 45 46 39 59 67 79 9A A.",
-            arcz_missing="45 59 46 67 79",
+            branchz="",
         )
         self.check_coverage("""\
             a, b, c = 1, 1, 1
@@ -1009,9 +1003,7 @@ class ExceptionArcTest(CoverageTest):
                 c = 9
             assert a == 1 and b == 5 and c == 9
             """,
-            arcz=".1 12 23 45 46 39 59 67 79 9A A.",
-            arcz_missing="39 46 67 79",
-            arcz_unpredicted="34",
+            branchz="",
         )
         self.check_coverage("""\
             a, b, c = 1, 1, 1
@@ -1025,9 +1017,7 @@ class ExceptionArcTest(CoverageTest):
                 c = 9
             assert a == 7 and b == 1 and c == 9
             """,
-            arcz=".1 12 23 45 46 39 59 67 79 9A A.",
-            arcz_missing="39 45 59",
-            arcz_unpredicted="34",
+            branchz="",
         )
         self.check_coverage("""\
             a, b, c = 1, 1, 1
@@ -1044,13 +1034,10 @@ class ExceptionArcTest(CoverageTest):
                 pass
             assert a == 1 and b == 1 and c == 10
             """,
-            arcz=".1 12 23 34 4A 56 6A 57 78 8A AD BC CD D.",
-            arcz_missing="4A 56 6A 78 8A AD",
-            arcz_unpredicted="45 7A AB",
+            branchz="",
         )
 
     def test_return_finally(self) -> None:
-        arcz = ".1 12 29 9A AB BC C-1   -23 34 45  7-2   57 38 8-2"
         self.check_coverage("""\
             a = [1]
             def check_token(data):
@@ -1065,18 +1052,12 @@ class ExceptionArcTest(CoverageTest):
             assert check_token(True) == 5
             assert a == [1, 7]
             """,
-            arcz=arcz,
+            branchz="34 38",
+            branchz_missing="",
         )
 
     @xfail_pypy_3882
     def test_except_jump_finally(self) -> None:
-        arcz = (
-            ".1 1Q QR RS ST TU U. " +
-            ".2 23 34 45 56 4O 6L " +
-            "78 89 9A AL   8B BC CD DL   BE EF FG GL   EH HI IJ JL  HL " +
-            "LO L4 L. LM " +
-            "MN NO O."
-        )
         self.check_coverage("""\
             def func(x):
                 a = f = g = 2
@@ -1109,9 +1090,8 @@ class ExceptionArcTest(CoverageTest):
             assert func('raise') == (18, 21, 23, 0)         # T
             assert func('other') == (2, 21, 2, 3)           # U 30
             """,
-            arcz=arcz,
-            arcz_missing="6L",
-            arcz_unpredicted="67",
+            branchz="45 4O 89 8B BC BE EF EH HI HL",
+            branchz_missing="",
         )
 
     @xfail_pypy_3882

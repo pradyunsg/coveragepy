@@ -250,7 +250,6 @@ class CheckUniqueFilenamesTest(CoverageTest):
             stub.method("file1")
 
 
-@pytest.mark.skipif(not env.CHECK_ARCS, reason="We aren't checking arcs")
 class CheckCoverageTest(CoverageTest):
     """Tests of the failure assertions in check_coverage."""
 
@@ -270,8 +269,11 @@ class CheckCoverageTest(CoverageTest):
     ARCZ = ".1 12 -23 34 3-2 4-2 25 56 67 78 8B 9A AB B."
     ARCZ_MISSING = "3-2 78 8B"
     ARCZ_UNPREDICTED = "79"
+    BRANCHZ = "34 3-2"
+    BRANCHZ_MISSING = "3-2"
 
-    def test_check_coverage_possible(self) -> None:
+    @pytest.mark.skipif(not env.CHECK_ARCS, reason="We aren't checking arcs")
+    def test_check_coverage_possible_arcs(self) -> None:
         msg = r"(?s)Possible arcs differ: .*- \(6, 3\).*\+ \(6, 7\)"
         with pytest.raises(AssertionError, match=msg):
             self.check_coverage(
@@ -281,7 +283,8 @@ class CheckCoverageTest(CoverageTest):
                 arcz_unpredicted=self.ARCZ_UNPREDICTED,
             )
 
-    def test_check_coverage_missing(self) -> None:
+    @pytest.mark.skipif(not env.CHECK_ARCS, reason="We aren't checking arcs")
+    def test_check_coverage_missing_arcs(self) -> None:
         msg = r"(?s)Missing arcs differ: .*- \(3, 8\).*\+ \(7, 8\)"
         with pytest.raises(AssertionError, match=msg):
             self.check_coverage(
@@ -291,14 +294,31 @@ class CheckCoverageTest(CoverageTest):
                 arcz_unpredicted=self.ARCZ_UNPREDICTED,
             )
 
-    def test_check_coverage_unpredicted(self) -> None:
-        msg = r"(?s)Unpredicted arcs differ: .*- \(3, 9\).*\+ \(7, 9\)"
-        with pytest.raises(AssertionError, match=msg):
+    def test_check_coverage_possible_branches(self) -> None:
+        msg = "Wrong possible branches: [(7, -2), (7, 4)] != [(3, -2), (3, 4)]"
+        with pytest.raises(AssertionError, match=re.escape(msg)):
             self.check_coverage(
                 self.CODE,
-                arcz=self.ARCZ,
-                arcz_missing=self.ARCZ_MISSING,
-                arcz_unpredicted=self.ARCZ_UNPREDICTED.replace("7", "3"),
+                branchz=self.BRANCHZ.replace("3", "7"),
+                branchz_missing=self.BRANCHZ_MISSING,
+            )
+
+    def test_check_coverage_missing_branches(self) -> None:
+        msg = "Wrong missing branches: [(3, 4)] != [(3, -2)]"
+        with pytest.raises(AssertionError, match=re.escape(msg)):
+            self.check_coverage(
+                self.CODE,
+                branchz=self.BRANCHZ,
+                branchz_missing="34",
+            )
+
+    def test_check_coverage_mismatched_missing_branches(self) -> None:
+        msg = "branches_missing = [(1, 2)], has non-branches in it."
+        with pytest.raises(AssertionError, match=re.escape(msg)):
+            self.check_coverage(
+                self.CODE,
+                branchz=self.BRANCHZ,
+                branchz_missing="12",
             )
 
 
